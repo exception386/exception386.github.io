@@ -330,7 +330,10 @@
         const blueKeyIcon = document.getElementById('blueKeyIcon');
         const difficultySelectionDiv = document.getElementById('difficultySelection');
         const difficultyButtons = document.querySelectorAll('.difficulty-button');
-        const playerSpriteImage = document.getElementById('playerSprite'); 
+        const playerSpriteImage = document.getElementById('playerSprite');
+        const orc1SpriteImage = document.getElementById('orc1Sprite');
+        const orc2SpriteImage = document.getElementById('orc2Sprite');
+        const orc3SpriteImage = document.getElementById('orc3Sprite');
         
         // New DOM elements for Instructions Modal
         const instructionsButton = document.getElementById('instructionsButton');
@@ -372,25 +375,25 @@
             right: { row: 3, frames: 6 }  // Bottom row
         };
 
-        function initializeOrcSprites() {
+        function initializeOrcSprites(orc1Img, orc2Img, orc3Img) {
             orcSpriteImages.length = 0; // Clear the array first
 
-            if (orc1SpriteImage && orc1SpriteImage.complete && orc1SpriteImage.naturalHeight !== 0) {
-                orcSpriteImages.push(orc1SpriteImage);
-            } else if (orc1SpriteImage) { // Log if defined but not loaded
-                console.warn("Orc 1 sprite image not loaded when initializeOrcSprites was called.");
+            if (orc1Img && orc1Img.complete && orc1Img.naturalHeight !== 0) {
+                orcSpriteImages.push(orc1Img);
+            } else if (orc1Img) { // Log if defined but not loaded
+                console.warn("Orc 1 sprite image (param) not loaded when initializeOrcSprites was called.");
             }
 
-            if (orc2SpriteImage && orc2SpriteImage.complete && orc2SpriteImage.naturalHeight !== 0) {
-                orcSpriteImages.push(orc2SpriteImage);
-            } else if (orc2SpriteImage) {
-                console.warn("Orc 2 sprite image not loaded when initializeOrcSprites was called.");
+            if (orc2Img && orc2Img.complete && orc2Img.naturalHeight !== 0) {
+                orcSpriteImages.push(orc2Img);
+            } else if (orc2Img) {
+                console.warn("Orc 2 sprite image (param) not loaded when initializeOrcSprites was called.");
             }
 
-            if (orc3SpriteImage && orc3SpriteImage.complete && orc3SpriteImage.naturalHeight !== 0) {
-                orcSpriteImages.push(orc3SpriteImage);
-            } else if (orc3SpriteImage) {
-                console.warn("Orc 3 sprite image not loaded when initializeOrcSprites was called.");
+            if (orc3Img && orc3Img.complete && orc3Img.naturalHeight !== 0) {
+                orcSpriteImages.push(orc3Img);
+            } else if (orc3Img) {
+                console.warn("Orc 3 sprite image (param) not loaded when initializeOrcSprites was called.");
             }
 
             if (orcSpriteImages.length < 3) {
@@ -2530,26 +2533,109 @@
         instructionsButton.addEventListener('click', showInstructions);
         closeInstructionsButton.addEventListener('click', hideInstructions);
 
-        playerSpriteImage.onload = () => { 
-            console.log("Player sprite loaded successfully.");
-            initializeOrcSprites(); 
-            showStartScreen(); 
-        };
-        playerSpriteImage.onerror = () => { 
-            console.error("Player sprite failed to load. Using fallback drawing.");
-            initializeOrcSprites(); // Ensure orcs are processed even if player sprite fails, for consistent behavior
-            showStartScreen(); 
-        }
-        if (playerSpriteImage.complete && playerSpriteImage.naturalHeight !== 0) {
-            console.log("Player sprite already complete, calling showStartScreen.");
-            initializeOrcSprites();
-            showStartScreen();
-        } else if (playerSpriteImage.complete && playerSpriteImage.naturalHeight === 0) {
-            console.error("Player sprite reported complete but has no dimensions (likely failed to load).");
-            initializeOrcSprites(); 
-            showStartScreen(); 
+        // Asset Preloading Function
+        function preloadAssets() {
+            // Global sprite image elements are used here directly
+            return new Promise((resolve, reject) => {
+                const imagesToLoad = [
+                    { el: playerSpriteImage, name: 'Player Sprite' }, // Uses global playerSpriteImage
+                    { el: orc1SpriteImage, name: 'Orc 1 Sprite' },   // Uses global orc1SpriteImage
+                    { el: orc2SpriteImage, name: 'Orc 2 Sprite' },   // Uses global orc2SpriteImage
+                    { el: orc3SpriteImage, name: 'Orc 3 Sprite' }    // Uses global orc3SpriteImage
+                ];
+
+                let loadedCount = 0;
+                const failedImages = [];
+
+                if (imagesToLoad.length === 0) {
+                    resolve();
+                    return;
+                }
+
+                imagesToLoad.forEach(imgObj => {
+                    const imageElement = imgObj.el; // Use .el as per new structure
+                    const imageName = imgObj.name;
+
+                    // Check if the image element itself exists
+                    if (!imageElement) {
+                        console.warn(`Image element for ${imageName} not found in the DOM.`);
+                        failedImages.push(`${imageName} (element not found)`);
+                        loadedCount++; // Increment to not block the promise indefinitely
+                        if (loadedCount === imagesToLoad.length) {
+                            if (failedImages.length > 0) {
+                                reject(`Failed to load: ${failedImages.join(', ')}`);
+                            } else {
+                                resolve();
+                            }
+                        }
+                        return; // Skip this image
+                    }
+                    
+                    // Check if image is already loaded and valid
+                    if (imageElement.complete) {
+                        if (imageElement.naturalHeight !== 0) {
+                            console.log(`${imageName} already loaded and valid.`);
+                            loadedCount++;
+                            if (loadedCount === imagesToLoad.length) {
+                                if (failedImages.length > 0) {
+                                    reject(`Failed to load: ${failedImages.join(', ')}`);
+                                } else {
+                                    resolve();
+                                }
+                            }
+                        } else {
+                            console.error(`${imageName} reported complete but has naturalHeight 0 (failed to load).`);
+                            failedImages.push(imageName);
+                            loadedCount++; // Treat as processed
+                            if (loadedCount === imagesToLoad.length) {
+                                reject(`Failed to load: ${failedImages.join(', ')}`);
+                            }
+                        }
+                    } else {
+                        // Attach onload and onerror handlers
+                        imageElement.onload = () => {
+                            console.log(`${imageName} loaded successfully.`);
+                            loadedCount++;
+                            if (loadedCount === imagesToLoad.length) {
+                                if (failedImages.length > 0) {
+                                    reject(`Failed to load: ${failedImages.join(', ')}`);
+                                } else {
+                                    resolve();
+                                }
+                            }
+                        };
+                        imageElement.onerror = () => {
+                            console.error(`${imageName} failed to load (onerror event).`);
+                            failedImages.push(imageName);
+                            loadedCount++; // Treat as processed
+                            if (loadedCount === imagesToLoad.length) {
+                                reject(`Failed to load: ${failedImages.join(', ')}`);
+                            }
+                        };
+                        // Re-check src just in case, though it should be set in HTML
+                        if (!imageElement.src) {
+                             console.warn(`Image element ${imageName} has no src. This might cause issues.`);
+                        }
+                    }
+                });
+            });
         }
 
+        // Initialize game after asset preloading
+        preloadAssets()
+            .then(() => {
+                console.log("All assets preloaded successfully.");
+                initializeOrcSprites(orc1SpriteImage, orc2SpriteImage, orc3SpriteImage); 
+                showStartScreen();    
+            })
+            .catch((error) => {
+                console.error("Asset preloading failed:", error);
+                initializeOrcSprites(orc1SpriteImage, orc2SpriteImage, orc3SpriteImage); 
+                showStartScreen();
+                if (messageText) { // Optional: Display user-facing error
+                     messageText.innerHTML = "Warning: Some game assets failed to load. Graphics may not display correctly.<br>Error: " + error;
+                }
+            });
 
         console.log("SCRIPT END: Event listeners attached, game ready for user interaction.");
     </script>
