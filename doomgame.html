@@ -294,6 +294,9 @@
     </div>
         
     <img id="playerSprite" src="https://jeffhockema.com/sprites/military1.png" style="display: none;" alt="Player Sprite" crossorigin="anonymous">
+    <img id="orc1Sprite" src="https://jeffhockema.com/sprites/orc1_walk_full.png" style="display: none;" alt="Orc 1 Sprite" crossorigin="anonymous">
+    <img id="orc2Sprite" src="https://jeffhockema.com/sprites/orc2_walk_full.png" style="display: none;" alt="Orc 2 Sprite" crossorigin="anonymous">
+    <img id="orc3Sprite" src="https://jeffhockema.com/sprites/orc3_walk_full.png" style="display: none;" alt="Orc 3 Sprite" crossorigin="anonymous">
 
     <script>
         console.log("SCRIPT START: Top-Down Doom-like game script initiated.");
@@ -357,6 +360,18 @@
             up:    { x: 3, y: 3 },
             };
                 
+        // Orc Sprite Constants
+        const ORC_SPRITE_FRAME_WIDTH = 64;
+        const ORC_SPRITE_FRAME_HEIGHT = 64;
+        const ORC_SPRITE_SCALE = 1.0; // Can be adjusted later if needed
+        const orcSpriteImages = []; // To be populated after images load
+        const orcFrames = {
+            up: { row: 0, frames: 6 },    // Top row
+            down: { row: 1, frames: 6 },  // Second row
+            left: { row: 2, frames: 6 },  // Third row
+            right: { row: 3, frames: 6 }  // Bottom row
+        };
+
         const camera = {
             x: 0, y: 0,
             width: VIEWPORT_WIDTH, height: VIEWPORT_HEIGHT,
@@ -1409,7 +1424,8 @@
 
         // Explosion Class
         class Explosion { constructor(x, y, radius, duration, color = 'orange') { this.x = x; this.y = y; this.maxRadius = radius; this.currentRadius = 0; this.duration = duration; this.life = duration; this.color = color; this.damageDealt = false; } update() { this.life--; this.currentRadius = this.maxRadius * (1 - (this.life / this.duration) * (this.life / this.duration) ); if (!this.damageDealt && this.life < this.duration * 0.8) { const targetsToDamage = currentBoss && currentBoss.health > 0 ? [currentBoss, ...enemies] : [...enemies]; targetsToDamage.forEach(target => { if (target && target.health > 0 && Math.hypot(target.x - this.x, target.y - this.y) < this.currentRadius) { if (target instanceof Boss || target instanceof MiniBoss) target.takeDamage(100); else target.takeDamage(75); } }); if (player && Math.hypot(player.x - this.x, player.y - this.y) < this.currentRadius) { player.takeDamage(35); } this.damageDealt = true; } } draw() { if (this.life <= 0) return; const opacity = Math.max(0, this.life / this.duration); ctx.fillStyle = `rgba(255, ${Math.floor(165 * opacity) + 60}, 0, ${opacity * 0.6})`; ctx.beginPath(); ctx.arc(this.x, this.y, this.currentRadius, 0, Math.PI * 2); ctx.fill(); if (this.currentRadius > TILE_SIZE * 0.2) { ctx.fillStyle = `rgba(255, 255, ${Math.floor(150 * opacity) + 100}, ${opacity * 0.8})`; ctx.beginPath(); ctx.arc(this.x, this.y, this.currentRadius * 0.5, 0, Math.PI * 2); ctx.fill(); } } }
-                
+        
+        let nextOrcSpriteIndex = 0;
         // Enemy Class
         class Enemy {
             constructor(x, y, type = 'grunt') {
@@ -1418,6 +1434,13 @@
                 this.wanderTargetX = this.x; this.wanderTargetY = this.y;
                 this.wanderTimer = 0; this.maxWanderTime = 120 + Math.floor(Math.random() * 60);
                 this.detectionRadius = TILE_SIZE * 6;
+
+                this.spriteImage = null;
+                this.currentAnimFrame = 0;
+                this.animTimer = 0;
+                this.animSpeed = 8; // Adjust as needed for animation fluidity
+                this.isMoving = false;
+                this.facingDirection = 'down'; // Default facing direction
 
                 const multipliers = getDifficultyMultipliers(selectedDifficulty);
                 let baseSpeed, baseChaseSpeed, baseHealth, baseDamage, baseContactDamage, baseMaxShootCooldown, baseBulletDamage;
@@ -1501,9 +1524,159 @@
                         break;
                 }
                 this.maxHealth = this.health;
+
+                if (this.enemyType === 'grunt') {
+                    // Ensure orcSpriteImages array is populated after images are loaded.
+                    // This might require adjustment if images are not guaranteed to be loaded
+                    // when the Enemy is constructed. For now, we assume they will be.
+                    // A more robust solution would check if images are loaded or pass them in.
+
+                    if (typeof orcSpriteImages === 'undefined') {
+                        // This is a fallback/safety net if orcSpriteImages wasn't defined earlier.
+                        // Ideally, it should be defined globally.
+                        console.warn("orcSpriteImages array is undefined. Grunt sprites might not load.");
+                    } else if (orcSpriteImages.length === 0 && orc1SpriteImage && orc2SpriteImage && orc3SpriteImage) {
+                        // Populate the array if it's empty and the individual images are loaded
+                        if (orc1SpriteImage.complete && orc1SpriteImage.naturalHeight !== 0) orcSpriteImages.push(orc1SpriteImage);
+                        if (orc2SpriteImage.complete && orc2SpriteImage.naturalHeight !== 0) orcSpriteImages.push(orc2SpriteImage);
+                        if (orc3SpriteImage.complete && orc3SpriteImage.naturalHeight !== 0) orcSpriteImages.push(orc3SpriteImage);
+
+                        if (orcSpriteImages.length === 0) {
+                            console.warn("Grunt constructor: No orc sprites loaded yet. Grunts will not have sprites initially.");
+                        }
+                    }
+                    
+                    if (orcSpriteImages.length > 0) {
+                        this.spriteImage = orcSpriteImages[nextOrcSpriteIndex];
+                        nextOrcSpriteIndex = (nextOrcSpriteIndex + 1) % orcSpriteImages.length;
+                    } else {
+                        // Attempt to assign directly if the array population failed but individual images exist
+                        // This is less ideal as it doesn't guarantee they are loaded.
+                        const tempOrcSprites = [orc1SpriteImage, orc2SpriteImage, orc3SpriteImage].filter(img => img && img.complete && img.naturalHeight !== 0);
+                        if (tempOrcSprites.length > 0) {
+                             this.spriteImage = tempOrcSprites[nextOrcSpriteIndex % tempOrcSprites.length];
+                             nextOrcSpriteIndex = (nextOrcSpriteIndex + 1) % tempOrcSprites.length;
+                             // Populate the main array now if it was empty
+                             if (orcSpriteImages.length === 0) {
+                                tempOrcSprites.forEach(s => orcSpriteImages.push(s));
+                             }
+                        } else {
+                            console.warn(`Grunt constructor: No orc sprite images are loaded or available for assignment. Enemy type: ${this.enemyType}`);
+                        }
+                    }
+                }
             }
-            draw() { if (player && visibilityMap) { const enemyTileX = Math.floor(this.x / TILE_SIZE); const enemyTileY = Math.floor(this.y / TILE_SIZE); if (enemyTileY < 0 || enemyTileY >= MAP_ROWS || enemyTileX < 0 || enemyTileX >= MAP_COLS || !visibilityMap[enemyTileY][enemyTileX]) { return; } } ctx.fillStyle = this.hitTimer > 0 ? 'white' : this.color; ctx.beginPath(); if (this.enemyType === 'tank') { ctx.fillRect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); } else if (this.enemyType === 'rusher' || this.enemyType === 'mini_splitter') { ctx.save(); ctx.translate(this.x, this.y); let angleToTarget = (this.state === 'wandering') ? Math.atan2(this.wanderTargetY - this.y, this.wanderTargetX - this.x) : Math.atan2(player.y - this.y, player.x - this.x); ctx.rotate(angleToTarget + Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, -this.radius); ctx.lineTo(this.radius * 0.8, this.radius * 0.8); ctx.lineTo(-this.radius * 0.8, this.radius * 0.8); ctx.closePath(); ctx.fill(); ctx.restore(); } else { ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); } let targetX = player.x, targetY = player.y; if (this.state === 'wandering') { targetX = this.wanderTargetX; targetY = this.wanderTargetY; } const angleToTarget = Math.atan2(targetY - this.y, targetX - this.x); ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(this.x + Math.cos(angleToTarget) * this.radius * 0.5, this.y + Math.sin(angleToTarget) * this.radius * 0.5, this.radius * 0.2, 0, Math.PI * 2); ctx.fill(); if (this.health < this.maxHealth) { ctx.fillStyle = 'red'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 10, this.radius * 2, 5); ctx.fillStyle = 'green'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 10, (this.radius * 2) * (this.health / this.maxHealth), 5); } } 
-            update(){ if(this.hitTimer>0) this.hitTimer--; if(!player) return; const dTP = Math.hypot(this.x - player.x, this.y - player.y); if (this.enemyType === 'teleporter') { this.teleportCooldown--; if (this.teleportCooldown <= 0 && dTP < this.detectionRadius * 2) { this.teleport(); this.teleportCooldown = this.maxTeleportCooldown; if (this.canShoot && this.shootCooldown === 0) { this.shoot(); this.shootCooldown = this.maxShootCooldown; } } } if (this.canShoot && dTP < this.detectionRadius * (this.enemyType === 'shooter' || this.enemyType === 'teleporter' ? 1.5 : 1.2) && dTP > TILE_SIZE * 1.5) { this.state = 'shooting'; } else if (dTP < this.detectionRadius) { this.state = 'chasing'; } else { if (this.state === 'chasing' || this.state === 'shooting') this.setNewWanderTarget(); this.state = 'wandering'; } if (this.shootCooldown > 0) this.shootCooldown--; let tX, tY, cS; if (this.state === 'shooting') { tX=player.x; tY=player.y; cS=this.speed*0.5; if(this.shootCooldown===0 && this.canShoot){this.shoot();this.shootCooldown=this.maxShootCooldown;} } else if (this.state === 'chasing') { tX=player.x; tY=player.y; cS=this.chaseSpeed; } else { this.wanderTimer--; if (this.wanderTimer <= 0 || Math.hypot(this.x-this.wanderTargetX,this.y-this.wanderTargetY)<TILE_SIZE/2) this.setNewWanderTarget(); tX=this.wanderTargetX;tY=this.wanderTargetY;cS=this.speed; } const aTT=Math.atan2(tY-this.y,tX-this.x),mX=Math.cos(aTT)*cS,mY=Math.sin(aTT)*cS,nX=this.x+mX,nY=this.y+mY; if (!this.checkWallCollision(nX,this.y))this.x=nX; if(!this.checkWallCollision(this.x,nY))this.y=nY; if (dTP < this.radius+player.radius) { player.takeDamage(this.damage); this.x-=Math.cos(aTT)*TILE_SIZE*0.5; this.y-=Math.sin(aTT)*TILE_SIZE*0.5; if(this.state==='wandering')this.state='chasing';} } 
+            draw() {
+    if (this.enemyType === 'grunt' && this.spriteImage && this.spriteImage.complete && this.spriteImage.naturalHeight !== 0 && typeof orcFrames !== 'undefined') {
+        ctx.save();
+        ctx.translate(this.x, this.y); // Translate to enemy's position
+
+        let frameConfig;
+        switch (this.facingDirection) {
+            case 'up':
+                frameConfig = orcFrames.up;
+                break;
+            case 'down':
+                frameConfig = orcFrames.down;
+                break;
+            case 'left':
+                frameConfig = orcFrames.left;
+                break;
+            case 'right':
+                frameConfig = orcFrames.right;
+                break;
+            default:
+                frameConfig = orcFrames.down; // Default to facing down
+        }
+
+        const sX = this.currentAnimFrame * ORC_SPRITE_FRAME_WIDTH;
+        const sY = frameConfig.row * ORC_SPRITE_FRAME_HEIGHT;
+
+        const dWidth = ORC_SPRITE_FRAME_WIDTH * ORC_SPRITE_SCALE;
+        const dHeight = ORC_SPRITE_FRAME_HEIGHT * ORC_SPRITE_SCALE;
+
+        // Adjust drawing position to center sprite, similar to player
+        // The player sprite is drawn with -dWidth / 2, -dHeight + this.radius
+        // We can use a similar offset, perhaps adjusting for the orc's radius or desired visual baseline
+        const drawOffsetX = -dWidth / 2;
+        const drawOffsetY = -dHeight + this.radius; // Align bottom of sprite roughly with enemy's y-center + radius
+
+        ctx.drawImage(
+            this.spriteImage,
+            sX, sY,
+            ORC_SPRITE_FRAME_WIDTH, ORC_SPRITE_FRAME_HEIGHT,
+            drawOffsetX, drawOffsetY,
+            dWidth, dHeight
+        );
+
+        ctx.restore();
+
+        // Optional: Health bar (can be kept from existing logic or redrawn here if needed)
+        // If the health bar logic below this new block is sufficient, this part can be skipped.
+        // However, to ensure it's drawn correctly with the sprite, consider drawing it here too.
+        if (this.health < this.maxHealth) {
+            ctx.fillStyle = 'red';
+            ctx.fillRect(this.x - this.radius, this.y - this.radius - 10 - (dHeight - this.radius), this.radius * 2, 5); // Adjusted Y for sprite
+            ctx.fillStyle = 'green';
+            ctx.fillRect(this.x - this.radius, this.y - this.radius - 10 - (dHeight - this.radius), (this.radius * 2) * (this.health / this.maxHealth), 5); // Adjusted Y
+        }
+        
+        return; // Important: Skip the old drawing logic for grunts if sprite is drawn
+    }
+ if (player && visibilityMap) { const enemyTileX = Math.floor(this.x / TILE_SIZE); const enemyTileY = Math.floor(this.y / TILE_SIZE); if (enemyTileY < 0 || enemyTileY >= MAP_ROWS || enemyTileX < 0 || enemyTileX >= MAP_COLS || !visibilityMap[enemyTileY][enemyTileX]) { return; } } ctx.fillStyle = this.hitTimer > 0 ? 'white' : this.color; ctx.beginPath(); if (this.enemyType === 'tank') { ctx.fillRect(this.x - this.radius, this.y - this.radius, this.radius * 2, this.radius * 2); } else if (this.enemyType === 'rusher' || this.enemyType === 'mini_splitter') { ctx.save(); ctx.translate(this.x, this.y); let angleToTarget = (this.state === 'wandering') ? Math.atan2(this.wanderTargetY - this.y, this.wanderTargetX - this.x) : Math.atan2(player.y - this.y, player.x - this.x); ctx.rotate(angleToTarget + Math.PI / 2); ctx.beginPath(); ctx.moveTo(0, -this.radius); ctx.lineTo(this.radius * 0.8, this.radius * 0.8); ctx.lineTo(-this.radius * 0.8, this.radius * 0.8); ctx.closePath(); ctx.fill(); ctx.restore(); } else { ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); ctx.fill(); } let targetX = player.x, targetY = player.y; if (this.state === 'wandering') { targetX = this.wanderTargetX; targetY = this.wanderTargetY; } const angleToTarget = Math.atan2(targetY - this.y, targetX - this.x); ctx.fillStyle = 'black'; ctx.beginPath(); ctx.arc(this.x + Math.cos(angleToTarget) * this.radius * 0.5, this.y + Math.sin(angleToTarget) * this.radius * 0.5, this.radius * 0.2, 0, Math.PI * 2); ctx.fill(); if (this.health < this.maxHealth) { ctx.fillStyle = 'red'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 10, this.radius * 2, 5); ctx.fillStyle = 'green'; ctx.fillRect(this.x - this.radius, this.y - this.radius - 10, (this.radius * 2) * (this.health / this.maxHealth), 5); } } 
+            update(){ if(this.hitTimer>0) this.hitTimer--; if(!player) return; const dTP = Math.hypot(this.x - player.x, this.y - player.y); if (this.enemyType === 'teleporter') { this.teleportCooldown--; if (this.teleportCooldown <= 0 && dTP < this.detectionRadius * 2) { this.teleport(); this.teleportCooldown = this.maxTeleportCooldown; if (this.canShoot && this.shootCooldown === 0) { this.shoot(); this.shootCooldown = this.maxShootCooldown; } } } if (this.canShoot && dTP < this.detectionRadius * (this.enemyType === 'shooter' || this.enemyType === 'teleporter' ? 1.5 : 1.2) && dTP > TILE_SIZE * 1.5) { this.state = 'shooting'; } else if (dTP < this.detectionRadius) { this.state = 'chasing'; } else { if (this.state === 'chasing' || this.state === 'shooting') this.setNewWanderTarget(); this.state = 'wandering'; } if (this.shootCooldown > 0) this.shootCooldown--; let tX, tY, cS; if (this.state === 'shooting') { tX=player.x; tY=player.y; cS=this.speed*0.5; if(this.shootCooldown===0 && this.canShoot){this.shoot();this.shootCooldown=this.maxShootCooldown;} } else if (this.state === 'chasing') { tX=player.x; tY=player.y; cS=this.chaseSpeed; } else { this.wanderTimer--; if (this.wanderTimer <= 0 || Math.hypot(this.x-this.wanderTargetX,this.y-this.wanderTargetY)<TILE_SIZE/2) this.setNewWanderTarget(); tX=this.wanderTargetX;tY=this.wanderTargetY;cS=this.speed; } const aTT=Math.atan2(tY-this.y,tX-this.x),mX=Math.cos(aTT)*cS,mY=Math.sin(aTT)*cS,nX=this.x+mX,nY=this.y+mY;
+                // Sprite animation and direction logic
+                if (this.enemyType === 'grunt' && this.spriteImage) {
+                    const prevX = this.x;
+                    const prevY = this.y;
+
+                    // Update position (this part already exists, just ensure the logic below is after it)
+                    // if (!this.checkWallCollision(nX,this.y))this.x=nX;
+                    // if(!this.checkWallCollision(this.x,nY))this.y=nY;
+                    // The actual position update happens slightly below this new block in the original code.
+                    // We will use mX and mY for direction determination before actual move for simplicity here.
+
+                    let actualMoveX = 0;
+                    let actualMoveY = 0;
+
+                    // Check potential X movement
+                    if (!this.checkWallCollision(nX, this.y)) {
+                        actualMoveX = mX;
+                    }
+                    // Check potential Y movement
+                    if (!this.checkWallCollision(this.x + actualMoveX, nY)) { // use x + actualMoveX to check Y after potential X move
+                        actualMoveY = mY;
+                    }
+
+
+                    if (actualMoveX !== 0 || actualMoveY !== 0) {
+                        this.isMoving = true;
+                        this.animTimer++;
+                        if (this.animTimer >= this.animSpeed) {
+                            this.currentAnimFrame = (this.currentAnimFrame + 1) % orcFrames.down.frames; // Assuming all directions have same number of frames
+                            this.animTimer = 0;
+                        }
+
+                        // Determine facing direction
+                        if (Math.abs(actualMoveX) > Math.abs(actualMoveY)) {
+                            if (actualMoveX > 0) {
+                                this.facingDirection = 'right';
+                            } else {
+                                this.facingDirection = 'left';
+                            }
+                        } else {
+                            if (actualMoveY > 0) {
+                                this.facingDirection = 'down';
+                            } else {
+                                this.facingDirection = 'up';
+                            }
+                        }
+                    } else {
+                        this.isMoving = false;
+                        this.currentAnimFrame = 0; // Reset to first frame if not moving
+                    }
+                }
+                if (!this.checkWallCollision(nX,this.y))this.x=nX; if(!this.checkWallCollision(this.x,nY))this.y=nY; if (dTP < this.radius+player.radius) { player.takeDamage(this.damage); this.x-=Math.cos(aTT)*TILE_SIZE*0.5; this.y-=Math.sin(aTT)*TILE_SIZE*0.5; if(this.state==='wandering')this.state='chasing';} } 
             teleport() { playTeleportSound(); let newX, newY, validSpot = false; let attempts = 0; const teleportRadius = TILE_SIZE * 5; while (!validSpot && attempts < 20) { const angle = Math.random() * Math.PI * 2; const distance = TILE_SIZE * 2 + Math.random() * teleportRadius; newX = player.x + Math.cos(angle) * distance; newY = player.y + Math.sin(angle) * distance; newX = Math.max(this.radius, Math.min(newX, MAP_COLS * TILE_SIZE - this.radius)); newY = Math.max(this.radius, Math.min(newY, MAP_ROWS * TILE_SIZE - this.radius)); const tileX = Math.floor(newX / TILE_SIZE); const tileY = Math.floor(newY / TILE_SIZE); if (tileX >= 0 && tileX < MAP_COLS && tileY >= 0 && tileY < MAP_ROWS && gameMap[tileY][tileX] === TILE_EMPTY) { let tooCloseToOtherEnemy = false; for(const otherEnemy of enemies){ if(otherEnemy !== this && Math.hypot(newX - otherEnemy.x, newY - otherEnemy.y) < (this.radius + otherEnemy.radius) * 1.5){ tooCloseToOtherEnemy = true; break; } } if(!tooCloseToOtherEnemy) validSpot = true; } attempts++; } if (validSpot) { this.x = newX; this.y = newY; } } 
             shoot() { 
                 if (!player || !this.canShoot) return; 
