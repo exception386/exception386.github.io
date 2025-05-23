@@ -2532,12 +2532,17 @@
 
         // Asset Preloading Function
         function preloadAssets() {
+            const playerSpriteImage = document.getElementById('playerSprite');
+            const orc1SpriteImage = document.getElementById('orc1Sprite');
+            const orc2SpriteImage = document.getElementById('orc2Sprite');
+            const orc3SpriteImage = document.getElementById('orc3Sprite');
+
             return new Promise((resolve, reject) => {
                 const imagesToLoad = [
-                    { name: "playerSpriteImage", element: playerSpriteImage },
-                    { name: "orc1SpriteImage", element: orc1SpriteImage },
-                    { name: "orc2SpriteImage", element: orc2SpriteImage },
-                    { name: "orc3SpriteImage", element: orc3SpriteImage }
+                    { el: playerSpriteImage, name: 'Player Sprite' },
+                    { el: orc1SpriteImage, name: 'Orc 1 Sprite' },
+                    { el: orc2SpriteImage, name: 'Orc 2 Sprite' },
+                    { el: orc3SpriteImage, name: 'Orc 3 Sprite' }
                 ];
 
                 let loadedCount = 0;
@@ -2549,7 +2554,7 @@
                 }
 
                 imagesToLoad.forEach(imgObj => {
-                    const imageElement = imgObj.element;
+                    const imageElement = imgObj.el; // Use .el as per new structure
                     const imageName = imgObj.name;
 
                     // Check if the image element itself exists
