@@ -460,187 +460,139 @@
         };
         const mouse = { x: VIEWPORT_WIDTH / 2, y: VIEWPORT_HEIGHT / 2, down: false }; 
 
-        // Audio Players
-        let pistolFirePlayer = null, shotgunFirePlayer = null, machineGunFirePlayer = null, rocketFirePlayer = null, bfgFirePlayer = null;
-        let playerHitPlayer = null, emptyGunPlayer = null;
-        let enemyHitPlayer = null, enemyDestroyedPlayer = null, enemyShootPlayer = null;
-        let bossHitPlayer = null, bossDeathPlayer = null, bossRegularShootPlayer = null, bossSeekingShootPlayer = null;
-        let rocketExplosionPlayer = null, bfgImpactPlayer = null;
-        let healthPickupPlayer = null, keyPickupPlayer = null, doorOpenPlayer = null, weaponPickupPlayer = null, ammoPickupPlayer = null;
-        let teleportPlayer = null, enemySplitPlayer = null, secretDoorOpenPlayer = null;
-        
+        // Audio Synths
+        let synth, metalSynth, hitSynth, explosionSynth, rocketFireSynth, bfgFireSynth, bossHitSynth, bossDeathSynth, bossRegularShootSynth, bossSeekingShootSynth, ammoPickupSynth, secretDoorOpenSynth; 
         let lastHitSoundTime = 0; 
         const HIT_SOUND_COOLDOWN = 50; 
         let lastEnemyDestroySoundTime = 0; 
         const ENEMY_DESTROY_SOUND_COOLDOWN = 100; 
 
-        function setupAudioPlayers() {
+        function setupSynths() {
             try {
-                pistolFirePlayer = new Tone.Player("assets/sounds/pistol_fire.wav").toDestination();
-                shotgunFirePlayer = new Tone.Player("assets/sounds/shotgun_fire.wav").toDestination();
-                machineGunFirePlayer = new Tone.Player("assets/sounds/machinegun_fire.wav").toDestination();
-                rocketFirePlayer = new Tone.Player("assets/sounds/rocket_fire.wav").toDestination();
-                bfgFirePlayer = new Tone.Player("assets/sounds/bfg_fire.wav").toDestination();
-                playerHitPlayer = new Tone.Player("assets/sounds/player_hit.wav").toDestination();
-                emptyGunPlayer = new Tone.Player("assets/sounds/empty_gun.wav").toDestination();
-                enemyHitPlayer = new Tone.Player("assets/sounds/enemy_hit.wav").toDestination();
-                enemyDestroyedPlayer = new Tone.Player("assets/sounds/enemy_destroyed.wav").toDestination();
-                enemyShootPlayer = new Tone.Player("assets/sounds/enemy_shoot.wav").toDestination();
-                bossHitPlayer = new Tone.Player("assets/sounds/boss_hit.wav").toDestination();
-                bossDeathPlayer = new Tone.Player("assets/sounds/boss_death.wav").toDestination();
-                bossRegularShootPlayer = new Tone.Player("assets/sounds/boss_shoot_regular.wav").toDestination();
-                bossSeekingShootPlayer = new Tone.Player("assets/sounds/boss_shoot_seeking.wav").toDestination();
-                rocketExplosionPlayer = new Tone.Player("assets/sounds/rocket_explosion.wav").toDestination();
-                bfgImpactPlayer = new Tone.Player("assets/sounds/bfg_impact.wav").toDestination();
-                healthPickupPlayer = new Tone.Player("assets/sounds/health_pickup.wav").toDestination();
-                keyPickupPlayer = new Tone.Player("assets/sounds/key_pickup.wav").toDestination();
-                doorOpenPlayer = new Tone.Player("assets/sounds/door_open.wav").toDestination();
-                weaponPickupPlayer = new Tone.Player("assets/sounds/weapon_pickup.wav").toDestination();
-                ammoPickupPlayer = new Tone.Player("assets/sounds/ammo_pickup.wav").toDestination();
-                teleportPlayer = new Tone.Player("assets/sounds/teleport.wav").toDestination();
-                enemySplitPlayer = new Tone.Player("assets/sounds/enemy_split.wav").toDestination();
-                secretDoorOpenPlayer = new Tone.Player("assets/sounds/secret_door_open.wav").toDestination();
+                synth = new Tone.Synth().toDestination();
+                metalSynth = new Tone.MetalSynth({frequency: 50, envelope: { attack: 0.001, decay: 0.1, release: 0.1 }, harmonicity: 3.1, modulationIndex: 16, resonance: 2000, octaves: 0.5}).toDestination();
+                metalSynth.volume.value = -15;
+                hitSynth = new Tone.NoiseSynth({noise: { type: "pink" }, envelope: { attack: 0.001, decay: 0.05, sustain: 0 }}).toDestination();
+                hitSynth.volume.value = -10;
+                explosionSynth = new Tone.NoiseSynth({noise: { type: "white" }, envelope: { attack: 0.005, decay: 0.3, sustain: 0, release: 0.4 }, volume: -3}).toDestination(); 
+                rocketFireSynth = new Tone.MembraneSynth({ pitchDecay: 0.05, octaves: 5, oscillator: {type: "sine"}, envelope: { attack: 0.001, decay: 0.4, sustain: 0.01, release: 0.4, attackCurve: "exponential"}, volume: -5 }).toDestination();
+                
+                bfgFireSynth = new Tone.NoiseSynth({ noise: { type: "pink" }, envelope: { attack: 0.1, decay: 0.8, sustain: 0.1, release: 0.5 }, volume: -2 }).toDestination();
+                const bfgFireFilter = new Tone.AutoFilter("2n").toDestination().start();
+                bfgFireFilter.depth.value = 0.8;
+                bfgFireSynth.connect(bfgFireFilter);
 
-                console.log("AudioPlayers initialized successfully.");
+                bossHitSynth = new Tone.MetalSynth({frequency: 40, envelope: { attack: 0.005, decay: 0.2, release: 0.1 }, harmonicity: 5.1, modulationIndex: 20, resonance: 1000, octaves: 1.5, volume: -8}).toDestination();
+                bossDeathSynth = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.1, decay: 1.5, sustain: 0.2, release: 1.0 }, volume: -3 }).toDestination();
+                const bossDeathChorus = new Tone.Chorus(4, 2.5, 0.7).toDestination().start();
+                bossDeathSynth.connect(bossDeathChorus);
+                
+                // Boss shoot synths
+                bossRegularShootSynth = new Tone.Synth({ oscillator: {type: "pwm", modulationFrequency: 0.2}, envelope: { attack: 0.01, decay: 0.3, sustain: 0.1, release: 0.2 }, volume: -10 }).toDestination();
+                bossSeekingShootSynth = new Tone.Synth({ oscillator: {type: "sawtooth", modulationFrequency: 0.3}, envelope: { attack: 0.02, decay: 0.25, sustain: 0.1, release: 0.2 }, volume: -11 }).toDestination();
+
+
+                ammoPickupSynth = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.005, decay: 0.1, release: 0.1 }, volume: -12 }).toDestination();
+                
+                // Secret Door Sound
+                secretDoorOpenSynth = new Tone.NoiseSynth({ noise: { type: "brown" }, envelope: { attack: 0.01, decay: 0.2, sustain: 0 }, volume: -15 }).toDestination();
+                const secretDoorFilter = new Tone.Filter(800, "lowpass").toDestination();
+                secretDoorOpenSynth.connect(secretDoorFilter);
+
+
+                console.log("Synths initialized successfully.");
             } catch (err) {
-                console.error("Error during setupAudioPlayers:", err);
+                console.error("Error during setupSynths:", err);
             }
         }
-         async function ensureAudioContextAndPlayers() {
+         async function ensureAudioAndSynths() {
             if (Tone.context.state === 'suspended') {
                 try { 
                     await Tone.start(); 
-                    console.log("Tone.js context started by ensureAudioContextAndPlayers.");
-                } catch (err) { console.error("Error starting Tone.js in ensureAudioContextAndPlayers:", err); }
+                    console.log("Tone.js context started by ensureAudioAndSynths.");
+                } catch (err) { console.error("Error starting Tone.js in ensureAudioAndSynths:", err); }
             }
-            if (!pistolFirePlayer) { // Check if players are initialized
+            if (!synth) { 
                 try {
-                    setupAudioPlayers(); 
+                    setupSynths(); 
                 } catch (err) {
-                    console.error("Error setting up audio players via ensureAudioContextAndPlayers:", err);
+                    console.error("Error setting up synths via ensureAudioAndSynths:", err);
                 }
             }
         }
 
         // Sound Playback Functions
-        function playShootSound(weaponName) {
-            if (Tone.context.state !== 'running') return;
-            if (weaponName === 'Pistol' && pistolFirePlayer) {
-                pistolFirePlayer.start();
-            } else if (weaponName === 'Shotgun' && shotgunFirePlayer) {
-                shotgunFirePlayer.start();
-            } else if (weaponName === 'Machine Gun' && machineGunFirePlayer) {
-                machineGunFirePlayer.start();
-            } else if (weaponName === 'Rocket Launcher' && rocketFirePlayer) {
-                rocketFirePlayer.start();
-            } else if (weaponName === 'BFG' && bfgFirePlayer) {
-                bfgFirePlayer.start();
-            }
-        }
-        function playHitSound() { // Generic enemy hit
-            const nowMs = Tone.now() * 1000;
-            if (nowMs - lastHitSoundTime < HIT_SOUND_COOLDOWN) return;
-            lastHitSoundTime = nowMs;
-            if (enemyHitPlayer && Tone.context.state === 'running') {
-                enemyHitPlayer.start();
-            }
-        }
-        function playPlayerHitSound() {
-            if (playerHitPlayer && Tone.context.state === 'running') {
-                playerHitPlayer.start();
-            }
-        }
-        function playEnemyDestroySound() {
-            const nowMs = Tone.now() * 1000;
-            if (nowMs - lastEnemyDestroySoundTime < ENEMY_DESTROY_SOUND_COOLDOWN) return;
-            lastEnemyDestroySoundTime = nowMs;
-            if (enemyDestroyedPlayer && Tone.context.state === 'running') {
-                enemyDestroyedPlayer.start();
-            }
-        }
+        function playShootSound(weaponName) { if (Tone.context.state !== 'running') return; const now = Tone.now() + 0.001; if (weaponName === 'Pistol' && metalSynth) { metalSynth.frequency.setValueAtTime(50, now); metalSynth.triggerAttackRelease("C2", "8n", now); } else if (weaponName === 'Shotgun' && metalSynth) { metalSynth.frequency.setValueAtTime(30, now); metalSynth.triggerAttackRelease("A1", "4n", now); } else if (weaponName === 'Machine Gun') { const mgSynth = new Tone.MetalSynth({ frequency: 70, envelope: { attack: 0.001, decay: 0.05, release: 0.05 }, harmonicity: 3.1, modulationIndex: 16, resonance: 1500, octaves: 0.5, volume: -18 }).toDestination(); mgSynth.triggerAttackRelease("D2", "32n", now); const duration = 0.001 + 0.05 + 0.05 + 0.02; setTimeout(() => { if (mgSynth && !mgSynth.disposed) { mgSynth.dispose(); } }, duration * 1000); } else if (weaponName === 'Rocket Launcher' && rocketFireSynth) { rocketFireSynth.triggerAttackRelease("C1", "0.5s", now); } else if (weaponName === 'BFG' && bfgFireSynth) { bfgFireSynth.triggerAttackRelease("1s", now); } }
+        function playHitSound() { const nowMs = Tone.now() * 1000; if (nowMs - lastHitSoundTime < HIT_SOUND_COOLDOWN) return; lastHitSoundTime = nowMs; if (hitSynth && Tone.context.state === 'running') hitSynth.triggerAttackRelease("8n", Tone.now() + 0.01); } 
+        function playPlayerHitSound() { if (synth && Tone.context.state === 'running') synth.triggerAttackRelease("A1", "8n", Tone.now() + 0.01); } 
+        function playEnemyDestroySound() { const nowMs = Tone.now() * 1000; if (nowMs - lastEnemyDestroySoundTime < ENEMY_DESTROY_SOUND_COOLDOWN) return; lastEnemyDestroySoundTime = nowMs; if (explosionSynth && Tone.context.state === 'running') explosionSynth.triggerAttackRelease("0.2", Tone.now() + 0.01); } 
         
         function playRocketExplosionSound() {
-            if (rocketExplosionPlayer && Tone.context.state === 'running') {
-                rocketExplosionPlayer.start();
+            if (Tone.context.state === 'running') {
+                const tempExplosionSynth = new Tone.NoiseSynth({
+                    noise: { type: "white" }, 
+                    envelope: { attack: 0.005, decay: 0.3, sustain: 0, release: 0.4 }, 
+                    volume: -3
+                }).toDestination();
+                tempExplosionSynth.triggerAttackRelease("0.4", Tone.now() + 0.01);
+                const duration = 0.005 + 0.3 + 0.4 + 0.05;
+                setTimeout(() => {
+                    if (tempExplosionSynth && !tempExplosionSynth.disposed) {
+                        tempExplosionSynth.dispose();
+                    }
+                }, duration * 1000);
             }
         }
         function playBFGImpactSound() {
-            if (bfgImpactPlayer && Tone.context.state === 'running') {
-                bfgImpactPlayer.start();
+            if (Tone.context.state === 'running') {
+                const tempBfgImpactSynth = new Tone.NoiseSynth({
+                    noise: { type: "white" },
+                    envelope: { attack: 0.01, decay: 0.6, sustain: 0, release: 0.8 },
+                    volume: 0 
+                }).toDestination();
+                const reverb = new Tone.Reverb(1.5).toDestination(); 
+                tempBfgImpactSynth.connect(reverb);
+                tempBfgImpactSynth.triggerAttackRelease("0.8s", Tone.now() + 0.01);
+                const duration = 0.01 + 0.6 + 0.8 + 0.05;
+                setTimeout(() => {
+                    if (tempBfgImpactSynth && !tempBfgImpactSynth.disposed) {
+                        tempBfgImpactSynth.dispose();
+                    }
+                    if (reverb && !reverb.disposed) { 
+                        reverb.dispose();
+                    }
+                }, duration * 1000);
             }
         }
-        function playEnemyShootSound() {
-            if (enemyShootPlayer && Tone.context.state === 'running') {
-                enemyShootPlayer.start();
-            }
-        }
-        function playHealthPickupSound() {
-            if (healthPickupPlayer && Tone.context.state === 'running') {
-                healthPickupPlayer.start();
-            }
-        }
-        function playKeyPickupSound() {
-            if (keyPickupPlayer && Tone.context.state === 'running') {
-                keyPickupPlayer.start();
-            }
-        }
-        function playDoorOpenSound() {
-            if (doorOpenPlayer && Tone.context.state === 'running') {
-                doorOpenPlayer.start();
-            }
-        }
-        function playWeaponPickupSound() {
-            if (weaponPickupPlayer && Tone.context.state === 'running') {
-                weaponPickupPlayer.start();
-            }
-        }
-        function playTeleportSound() {
-            if (teleportPlayer && Tone.context.state === 'running') {
-                teleportPlayer.start();
-            }
-        }
-        function playSplitSound() {
-            if (enemySplitPlayer && Tone.context.state === 'running') {
-                enemySplitPlayer.start();
-            }
-        }
-        function playEmptyGunSound() {
-            if (emptyGunPlayer && Tone.context.state === 'running') {
-                emptyGunPlayer.start();
-            }
-        }
-        function playBossHitSound() {
-            if (bossHitPlayer && Tone.context.state === 'running') {
-                bossHitPlayer.start();
-            }
-        }
-        function playBossDeathSound() {
-            if (bossDeathPlayer && Tone.context.state === 'running') {
-                bossDeathPlayer.start();
-            }
-        }
+        function playEnemyShootSound() { if (Tone.context.state === 'running') { const tempEnemySynth = new Tone.Synth({ oscillator: { type: "square" }, envelope: { attack: 0.005, decay: 0.05, sustain: 0.01, release: 0.1 }, volume: -20 }).toDestination(); tempEnemySynth.triggerAttackRelease("G3", "16n", Tone.now() + 0.001); const duration = 0.005 + 0.05 + 0.01 + 0.1 + 0.05; setTimeout(() => { if (tempEnemySynth && !tempEnemySynth.disposed) { tempEnemySynth.dispose(); } }, duration * 1000); } }
+        function playHealthPickupSound() { if (Tone.context.state === 'running') { const tempHealthSynth = new Tone.Synth({oscillator: { type: "sine" }, envelope: { attack: 0.01, decay: 0.1, sustain: 0.05, release: 0.2 }, volume: -10}).toDestination(); tempHealthSynth.triggerAttackRelease("C5", "8n", Tone.now() + 0.01); const duration = 0.01 + 0.1 + 0.05 + 0.2 + 0.05; setTimeout(() => { if (tempHealthSynth && !tempHealthSynth.disposed) { tempHealthSynth.dispose(); } }, duration * 1000); } }
+        function playKeyPickupSound() { if (Tone.context.state === 'running') { const tempKeyPickupSynth = new Tone.Synth({oscillator: {type: "triangle"}, envelope: {attack: 0.01, decay: 0.2, release: 0.2}, volume: -8}).toDestination(); tempKeyPickupSynth.triggerAttackRelease("E5", "8n", Tone.now() + 0.01); const duration = 0.01 + 0.2 + 0.2 + 0.05; setTimeout(() => { if (tempKeyPickupSynth && !tempKeyPickupSynth.disposed) { tempKeyPickupSynth.dispose(); } }, duration * 1000); } }
+        function playDoorOpenSound() { if (Tone.context.state === 'running') { const tempDoorOpenSynth = new Tone.MetalSynth({frequency: 100, envelope: {attack:0.01, decay:0.3, release: 0.1}, harmonicity: 1.1, modulationIndex:5, resonance: 500, octaves: 1.5, volume: -12}).toDestination(); tempDoorOpenSynth.triggerAttackRelease("F#2", "4n", Tone.now() + 0.01); const duration = 0.01 + 0.3 + 0.1 + 0.05; setTimeout(() => { if (tempDoorOpenSynth && !tempDoorOpenSynth.disposed) { tempDoorOpenSynth.dispose(); } }, duration * 1000); } }
+        function playWeaponPickupSound() { if (Tone.context.state === 'running') { const tempWeaponPickupSynth = new Tone.Synth({ oscillator: {type: "sawtooth"}, envelope: {attack: 0.02, decay: 0.15, release: 0.2}, volume: -9}).toDestination(); tempWeaponPickupSynth.triggerAttackRelease("A4", "8n", Tone.now() + 0.01); const duration = 0.02 + 0.15 + 0.2 + 0.05; setTimeout(() => { if (tempWeaponPickupSynth && !tempWeaponPickupSynth.disposed) { tempWeaponPickupSynth.dispose(); } }, duration * 1000); } }
+        function playTeleportSound() { if (Tone.context.state === 'running') { const tempTeleportSynth = new Tone.Synth({ oscillator: { type: 'triangle8' }, envelope: { attack: 0.01, decay: 0.2, release: 0.2 }, volume: -10 }).toDestination(); tempTeleportSynth.triggerAttackRelease("C6", "16n", Tone.now() + 0.01); const duration = 0.01 + 0.2 + 0.2 + 0.05; setTimeout(() => { if (tempTeleportSynth && !tempTeleportSynth.disposed) { tempTeleportSynth.dispose(); } }, duration * 1000); } }
+        function playSplitSound() { if (Tone.context.state === 'running') { const tempSplitSynth = new Tone.PluckSynth({ attackNoise: 0.5, dampening: 2000, resonance: 0.8, volume: -8 }).toDestination(); tempSplitSynth.triggerAttackRelease("G2", "8n", Tone.now() + 0.01); setTimeout(() => { if (tempSplitSynth && !tempSplitSynth.disposed) { tempSplitSynth.dispose(); } }, 500); } }
+        function playEmptyGunSound() { if (Tone.context.state === 'running') { const tempEmptyGunSynth = new Tone.MembraneSynth({ pitchDecay: 0.008, octaves: 2, envelope: { attack: 0.001, decay: 0.1, sustain: 0 }, volume: -10 }).toDestination(); tempEmptyGunSynth.triggerAttackRelease("C2", "16n", Tone.now() + 0.001); const duration = 0.001 + 0.1 + 0.05; setTimeout(() => { if (tempEmptyGunSynth && !tempEmptyGunSynth.disposed) { tempEmptyGunSynth.dispose(); } }, duration * 1000); } }
+        function playBossHitSound() { if (bossHitSynth && Tone.context.state === 'running') bossHitSynth.triggerAttackRelease("G1", "4n", Tone.now() + 0.01);} 
+        function playBossDeathSound() { if (bossDeathSynth && Tone.context.state === 'running') bossDeathSynth.triggerAttackRelease("2s", Tone.now() + 0.01);} 
         
         function playBossRegularShootSound() {
-            if (bossRegularShootPlayer && Tone.context.state === 'running') {
-                bossRegularShootPlayer.start();
+            if (bossRegularShootSynth && Tone.context.state === 'running') {
+                bossRegularShootSynth.triggerAttackRelease("A2", "8n", Tone.now() + 0.01);
             }
         }
         function playBossSeekingShootSound() {
-            if (bossSeekingShootPlayer && Tone.context.state === 'running') {
-                bossSeekingShootPlayer.start();
+            if (bossSeekingShootSynth && Tone.context.state === 'running') {
+                bossSeekingShootSynth.triggerAttackRelease("G#2", "8n", Tone.now() + 0.01); 
             }
         }
         function playSecretDoorOpenSound() { 
-            if (secretDoorOpenPlayer && Tone.context.state === 'running') {
-                secretDoorOpenPlayer.start();
+            if (secretDoorOpenSynth && Tone.context.state === 'running') {
+                secretDoorOpenSynth.triggerAttackRelease("0.1s", Tone.now() + 0.01); 
             }
         }
 
-        function playAmmoPickupSound() {
-            if (ammoPickupPlayer && Tone.context.state === 'running') {
-                ammoPickupPlayer.start();
-            }
-        }
+        function playAmmoPickupSound() { if (ammoPickupSynth && Tone.context.state === 'running') ammoPickupSynth.triggerAttackRelease("D4", "16n", Tone.now() + 0.01); }
+
 
         // BFS Pathfinding (for level validation)
         function findPath(startX, startY, endX, endY, currentMap, keysAvailable) {
@@ -1451,15 +1403,15 @@
         // MiniBoss Class (for level 3 and random encounters)
         class MiniBoss extends Enemy {
             constructor(x, y) {
-                super(x, y, 'grunt'); 
-                this.enemyType = 'mini_boss_rl_dropper'; 
+                super(x, y, 'grunt'); // Base properties
+                this.enemyType = 'mini_boss_rl_dropper'; // Specific type for MiniBoss
                 this.radius = TILE_SIZE * 0.8; 
                 this.speed = 0.7;
                 this.chaseSpeed = 1.0;
                 this.health = 300 * (selectedDifficulty === 'easy' ? 0.8 : (selectedDifficulty === 'hard' ? 1.2 : 1));
                 this.maxHealth = this.health;
                 this.damage = 20; 
-                this.color = '#AA00AA'; 
+                this.color = '#AA00AA'; // Distinct color
                 this.canShoot = true;
                 this.shootCooldown = 0;
                 this.maxShootCooldown = 90; 
@@ -1771,7 +1723,7 @@
             isLevelCompleting = true; 
             gameRunning = false; 
             if(gameLoopId) cancelAnimationFrame(gameLoopId); 
-            messageTitle.textContent = isBossLevel ? "BOSS DEFEATED!" : "Level Cleared!"; // Changed this line
+            messageTitle.textContent = (isBossLevel || isCurrentLevelMiniBoss) ? "BOSS DEFEATED!" : "Level Cleared!"; 
             messageText.innerHTML = `Level ${currentLevel} complete! Score: ${score} <br> Click 'Next Level' to continue.`; 
             messageOverlay.style.display = 'flex'; 
             restartButton.textContent = "Next Level"; 
@@ -1828,13 +1780,12 @@
                 // Update currentBoss (main or mini-boss) if it exists
                 if (currentBoss) {
                     currentBoss.update();
-                    if (currentBoss.health <= 0) { 
-                        if (isBossLevel && !isLevelCompleting) { // Main boss defeated
-                             levelComplete();
+                    if (currentBoss.health <= 0) { // Boss/Mini-boss defeated
+                        if (!isLevelCompleting) { 
+                            levelComplete(); // This will set isLevelCompleting to true
                         }
-                        // For a mini-boss, its defeat just means it's gone from currentBoss.
-                        // enemiesRemaining was already decremented by its takeDamage method.
-                        currentBoss = null; 
+                        currentBoss = null; // Clear the boss
+                        // enemiesRemaining was already decremented by Boss/MiniBoss takeDamage
                     } else {
                         // Bullet collision with currentBoss
                         bullets = bullets.filter(b => {
@@ -1987,8 +1938,8 @@
                     });
                 }
                 
-                if (currentBoss) { currentBoss.draw(); } // Draw main boss or mini-boss
-                enemies.forEach(e => e.draw()); // Draw regular enemies
+                if ((isBossLevel || isCurrentLevelMiniBoss) && currentBoss) { currentBoss.draw(); } 
+                enemies.forEach(e => e.draw()); // Always draw regular enemies
 
                 if (player) player.draw(); 
                 bullets.forEach(b => b.draw()); 
@@ -2098,7 +2049,7 @@
         function showInstructions() {
             instructionsTextContent.innerHTML = `
                 <strong>Objective:</strong> Find keys, open doors, and reach the Exit!<br>
-                A Mini-Boss guards the exit on Level 3, and randomly on later levels (not main boss levels). Regular enemies will also be present.<br>
+                A Mini-Boss guards the exit on Level 3, and randomly on later levels (not main boss levels). <br>
                 Main Bosses appear every 5 levels!<br>
                 Look for subtly different wall tiles to find secret rooms!<br><br>
                 <strong>Movement:</strong> Arrow Keys or WASD<br>
@@ -2109,7 +2060,7 @@
                 <strong>Pickups:</strong><br>
                 <span style="color:lime;">Green Cross:</span> Health Pack<br>
                 <span style="color:red;">Red/</span><span style="color:yellow;">Yellow/</span><span style="color:blue;">Blue Squares:</span> Keys<br>
-                <span style="color:purple;">Purple Square:</span> Level Exit (may be locked by Mini-Boss!)<br>
+                <span style="color:purple;">Purple Square:</span> Level Exit (may be locked!)<br>
                 <span style="color:#FFA500;">SG</span>/<span style="color:#ADD8E6;">MG</span>/<span style="color:#FF4500;">RL</span>/<span style="color:#00DD00;">BFG</span>: Weapon Pickups<br>
                 <span style="color:#AAAAAA;">Grey Boxes (S,M,R,B):</span> Ammo Pickups<br><br>
                 <strong>Cheats (for testing):</strong><br>
@@ -2131,15 +2082,15 @@
         window.addEventListener('keydown', (e) => { const keyName = e.key.toLowerCase(); if (keys.hasOwnProperty(e.key)) keys[e.key] = true; else if (keys.hasOwnProperty(keyName)) keys[keyName] = true; if (gameRunning && player) { if (keyName === 'i' && !keys.i_cheat_processed) { keys.i_cheat_processed = true; player.canPhase = !player.canPhase; } else if (keyName === 'k' && !keys.k_cheat_processed) { keys.k_cheat_processed = true; player.collectAllKeys(); } else if (keyName === 'g' && !keys.g_cheat_processed) { keys.g_cheat_processed = true; player.collectAllGuns(); } else if (keyName === 'l' && !keys.l_cheat_processed) { keys.l_cheat_processed = true; levelComplete(); } } if (gameRunning && player) { if (keyName === '1' && !keys.weapon_1_processed) { player.switchWeapon(0); keys.weapon_1_processed = true; } else if (keyName === '2' && !keys.weapon_2_processed) { const idx = player.weapons.findIndex(w=>w.name==="Shotgun"); if(idx!==-1 && player.weapons[idx].owned) player.switchWeapon(idx); keys.weapon_2_processed = true; } else if (keyName === '3' && !keys.weapon_3_processed) { const idx = player.weapons.findIndex(w=>w.name==="Machine Gun"); if(idx!==-1 && player.weapons[idx].owned)player.switchWeapon(idx); keys.weapon_3_processed = true; } else if (keyName === '4' && !keys.weapon_4_processed) { const idx = player.weapons.findIndex(w=>w.name==="Rocket Launcher"); if(idx!==-1 && player.weapons[idx].owned)player.switchWeapon(idx); keys.weapon_4_processed = true; } else if (keyName === '5' && !keys.weapon_5_processed) { const idx = player.weapons.findIndex(w=>w.name==="BFG"); if(idx!==-1 && player.weapons[idx].owned)player.switchWeapon(idx); keys.weapon_5_processed = true; } } });
         window.addEventListener('keyup', (e) => { const keyName = e.key.toLowerCase(); if (keys.hasOwnProperty(e.key)) keys[e.key] = false; else if (keys.hasOwnProperty(keyName)) keys[keyName] = false; if (keyName === 'i') keys.i_cheat_processed = false; else if (keyName === 'k') keys.k_cheat_processed = false; else if (keyName === 'g') keys.g_cheat_processed = false; else if (keyName === 'l') keys.l_cheat_processed = false; if (keyName === '1') keys.weapon_1_processed = false; if (keyName === '2') keys.weapon_2_processed = false; if (keyName === '3') keys.weapon_3_processed = false; if (keyName === '4') keys.weapon_4_processed = false; if (keyName === '5') keys.weapon_5_processed = false; });
         canvas.addEventListener('mousemove', (e)=>{ const r=canvas.getBoundingClientRect();mouse.x=e.clientX-r.left;mouse.y=e.clientY-r.top;});
-        canvas.addEventListener('mousedown', (e)=>{if(e.button===0){ensureAudioContextAndPlayers();mouse.down=true;}}); 
+        canvas.addEventListener('mousedown', (e)=>{if(e.button===0){ensureAudioAndSynths();mouse.down=true;}}); 
         canvas.addEventListener('mouseup', (e)=>{if(e.button===0)mouse.down=false;});
         canvas.addEventListener('contextmenu', (e)=>e.preventDefault()); 
         
         restartButton.addEventListener('click', () => { 
             console.log("Restart/Next Level button clicked. Text:", `"${restartButton.textContent}"`);
             
-            ensureAudioContextAndPlayers(); 
-            console.log("DEBUG: ensureAudioContextAndPlayers called (no await). Hiding message overlay.");
+            ensureAudioAndSynths(); 
+            console.log("DEBUG: ensureAudioAndSynths called (no await). Hiding message overlay.");
             messageOverlay.style.display = 'none';
             console.log("DEBUG: messageOverlay hidden. Checking button text.");
 
