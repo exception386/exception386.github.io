@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>jLooper</title>
+    <meta name="description" content="A live-looping instrument in the browser." />
+    <style>
+      /* The page is a frame for one canvas, so it gets out of the way. The
+         chassis colour is repeated here rather than imported because it has to
+         be painted before any script runs - a white flash on load would be the
+         first thing anyone saw. It is clipColours::backdrop. */
+      :root { color-scheme: dark; }
+
+      html, body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        background: #090b10;
+        font-family: ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
+        color: #dce3ee;
+      }
+
+      #app { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+      #start {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        gap: 18px;
+        justify-items: center;
+        background: #090b10;
+        text-align: center;
+        padding: 24px;
+      }
+
+      #start h1 { margin: 0; font-size: 30px; letter-spacing: -0.01em; }
+
+      /* Dimmer than the heading, brighter than the old body grey: it is the only
+         prose on the screen now, so it should read without competing with the
+         name above it. */
+      #start p  { margin: 0; max-width: 44ch; line-height: 1.55; color: #8b95ab; font-size: 15px; }
+
+      #start button {
+        margin-top: 6px;
+        padding: 11px 28px;
+        font: inherit;
+        font-weight: 600;
+        color: #fff;
+        background: linear-gradient(90deg, #2dd4bf, #8b5cf6);
+        border: 0;
+        border-radius: 7px;
+        cursor: pointer;
+      }
+
+      #start button:disabled { opacity: 0.55; cursor: progress; }
+
+      #start .bars { display: flex; align-items: flex-end; gap: 3px; height: 26px; }
+      #start .bars i { width: 4px; border-radius: 2px; display: block; }
+
+      /* `#start p` before it is one ID *and* a type, which outranks a bare
+         `#error` - so the failure message was being drawn in the body colour at
+         the body size, exactly as though nothing had gone wrong. Qualified so
+         it wins, because the one time this text appears is the one time it has
+         to be read. */
+      #start p#error { color: #ef4444; font-size: 13px; max-width: 52ch; }
+    </style>
+    <script type="module" crossorigin src="./assets/index-sbizX62V.js"></script>
+  </head>
+  <body>
+    <canvas id="app"></canvas>
+
+    <!-- Browsers will not let a page make a sound until somebody asks it to,
+         so the instrument opens behind a button rather than silently failing
+         to start. -->
+    <div id="start">
+      <div class="bars">
+        <i style="height: 42%; background: #2dd4bf"></i>
+        <i style="height: 78%; background: #46b4cf"></i>
+        <i style="height: 100%; background: #6094e2"></i>
+        <i style="height: 62%; background: #7674ee"></i>
+        <i style="height: 34%; background: #8b5cf6"></i>
+      </div>
+      <h1>jLooper</h1>
+      <p>Play something and it loops. Play again and it layers.</p>
+      <button id="startButton" type="button">Start playing</button>
+      <p id="error"></p>
+    </div>
+
+  </body>
+</html>

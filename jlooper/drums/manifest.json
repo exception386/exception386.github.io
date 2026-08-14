@@ -1,0 +1,48 @@
+{
+    "tr-707": {
+        "36": "BassDrum1.wav",
+        "38": "Snare1.wav",
+        "39": "HandClap.wav",
+        "42": "RimShot.wav",
+        "46": "Tamb.wav",
+        "49": "HhC.wav",
+        "54": "HhO.wav",
+        "60": "Ride.wav",
+        "65": "LowTom.wav",
+        "69": "MedTom.wav",
+        "71": "HiTom.wav",
+        "77": "Crash.wav",
+        "81": "CowBell.wav"
+    },
+    "tr-808": {
+        "36": "BD2525.WAV",
+        "38": "SD2525.WAV",
+        "39": "CP.WAV",
+        "41": "MA.WAV",
+        "42": "RS.WAV",
+        "43": "CL.WAV",
+        "49": "CH.WAV",
+        "54": "OH25.WAV",
+        "65": "LT25.WAV",
+        "66": "LC25.WAV",
+        "68": "MC25.WAV",
+        "69": "MT25.WAV",
+        "70": "HC25.WAV",
+        "71": "HT25.WAV",
+        "77": "CY2525.WAV",
+        "81": "CB.WAV"
+    },
+    "tr-909": {
+        "36": "BT7A0D0.WAV",
+        "38": "ST7T0S0.WAV",
+        "39": "HANDCLP2.WAV",
+        "42": "RIM63.WAV",
+        "49": "HHCD6.WAV",
+        "54": "HHOD6.WAV",
+        "60": "RIDED6.WAV",
+        "65": "LT7D0.WAV",
+        "69": "MT7D0.WAV",
+        "71": "HT7D0.WAV",
+        "77": "CSHD6.WAV"
+    }
+}
