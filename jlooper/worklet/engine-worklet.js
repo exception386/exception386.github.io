@@ -312,12 +312,28 @@ class JLooperProcessor extends AudioWorkletProcessor {
         const pictures = []
 
         for (const { track, scene } of wanted) {
+            const base = this.clipScratchPtr >> 2
+
+            // An audio loop has a waveform where a MIDI one has notes. Asked
+            // for on the same trip rather than through a second request: the
+            // page wants "what does this cell look like", and which kind of
+            // answer it gets is the engine's to know.
+            const buckets = m._engine_write_clip_peaks(this.engine, track, scene,
+                                                       this.clipScratchPtr, 256)
+
+            if (buckets > 0) {
+                pictures.push({
+                    track,
+                    scene,
+                    peaks: m.HEAPF32.slice(base, base + buckets),
+                })
+                continue
+            }
+
             const count = m._engine_write_note_picture(this.engine, track, scene,
                                                        this.clipScratchPtr, maxNotes)
 
             if (count < 0) continue      // more notes than the scratch can hold
-
-            const base = this.clipScratchPtr >> 2
 
             pictures.push({
                 track,
